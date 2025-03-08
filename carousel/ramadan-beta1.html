@@ -13,14 +13,15 @@
 
       html, body {
         width: 100%;
+        height: 100vh;
         background-color: transparent;
         font-family: Arial, sans-serif;
-        overflow-x: hidden; /* Prevent horizontal scrolling */
+        overflow: hidden; /* Prevent any scrolling */
       }
 
       .master-container {
         width: 100%;
-        max-width: 100%;
+        height: 100%;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -29,15 +30,13 @@
 
       .carousel-container {
         width: 100%;
-        max-height: 80vh; /* Cap the height on direct viewing */
+        height: 85%; /* Take up most of the height, leave room for dots */
         position: relative;
-        margin-bottom: 40px; /* Make room for dots */
       }
 
       .carousel {
         width: 100%;
         height: 100%;
-        max-height: 70vh; /* Prevent excessive height */
         overflow: hidden;
         border-radius: 8px;
         position: relative;
@@ -53,18 +52,15 @@
       .carousel-images a {
         flex-shrink: 0;
         width: 100%;
-        height: auto; /* Let height adjust based on width */
+        height: 100%;
         text-decoration: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
       }
 
       .carousel-images img {
         width: 100%;
-        max-height: 70vh; /* Cap image height */
+        height: 100%;
         display: block;
-        object-fit: contain; /* Change to contain to prevent cropping */
+        object-fit: cover;
       }
 
       .carousel-controls {
@@ -94,7 +90,7 @@
       .dots-container {
         width: 100%;
         position: absolute;
-        bottom: 15px;
+        bottom: 10px;
         left: 0;
         display: flex;
         justify-content: center;
@@ -138,23 +134,18 @@
 
       /* Mobile optimizations */
       @media (max-width: 768px) {
-        .carousel-container {
-          max-height: 65vh; /* Reduce height on mobile */
-        }
-        
-        .carousel {
-          max-height: 55vh; /* Reduce carousel height on mobile */
+        .arrow {
+          padding: 10px 15px;
+          font-size: 12px;
+          margin: 0 5px;
         }
         
         .carousel-images img {
-          max-height: 55vh; /* Reduce image height on mobile */
-          object-fit: contain; /* Ensure images don't get cropped */
-        }
-        
-        .arrow {
-          padding: 8px 12px;
-          font-size: 16px;
-          margin: 0 5px;
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-position: center;
+        object-fit: cover;
         }
         
         .dot {
@@ -165,10 +156,6 @@
         
         .dots {
           padding: 4px 8px;
-        }
-        
-        .dots-container {
-          bottom: -30px; /* Position dots below carousel on mobile */
         }
       }
     </style>
@@ -263,7 +250,6 @@
                 const imgElement = document.createElement('img');
                 imgElement.src = imageUrl;
                 imgElement.alt = altText;
-                imgElement.loading = "lazy"; // Add lazy loading for better performance
                 
                 linkElement.appendChild(imgElement);
                 carouselImages.appendChild(linkElement);
