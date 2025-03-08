@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compact Mobile Carousel for Google Sites</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        width: 100%;
+        height: 100vh;
+        background-color: transparent;
+        font-family: Arial, sans-serif;
+        overflow: hidden; /* Prevent any scrolling */
+      }
+
+      .master-container {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+      }
+
+      .carousel-container {
+        width: 100%;
+        height: 85%; /* Take up most of the height, leave room for dots */
+        position: relative;
+      }
+
+      .carousel {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        border-radius: 8px;
+        position: relative;
+      }
+
+      .carousel-images {
+        display: flex;
+        transition: transform 0.8s ease;
+        width: 100%;
+        height: 100%;
+      }
+
+      .carousel-images a {
+        flex-shrink: 0;
+        width: 100%;
+        height: 100%;
+        text-decoration: none;
+      }
+
+      .carousel-images img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+      }
+
+      .carousel-controls {
+        position: absolute;
+        top: 50%;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        transform: translateY(-50%);
+        z-index: 10;
+        pointer-events: none;
+      }
+
+      .arrow {
+        background: rgba(0, 0, 0, 0.6);
+        color: #ffffff;
+        border: none;
+        padding: 8px 20px;
+        cursor: pointer;
+        font-size: 30px;
+        border-radius: 20%;
+        margin: 0 10px;
+        pointer-events: auto;
+      }
+
+      /* Position dots at bottom of container */
+      .dots-container {
+        width: 100%;
+        position: absolute;
+        bottom: 10px;
+        left: 0;
+        display: flex;
+        justify-content: center;
+        z-index: 20;
+      }
+
+      .dots {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 5px 10px;
+        background-color: rgba(0, 0, 0, 0.7);
+        border-radius: 15px;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        background: #888;
+        border-radius: 50%;
+        margin: 0 5px;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 2px solid white;
+      }
+
+      .dot.active {
+        background: white;
+        transform: scale(1.2);
+      }
+
+      /* Loading indicator */
+      .loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #333;
+        font-size: 18px;
+      }
+
+      /* Mobile optimizations */
+      @media (max-width: 768px) {
+        .arrow {
+          padding: 10px 15px;
+          font-size: 12px;
+          margin: 0 5px;
+        }
+        
+        .carousel-images img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-position: center;
+        object-fit: cover;
+        }
+        
+        .dot {
+          width: 8px;
+          height: 8px;
+          margin: 0 4px;
+        }
+        
+        .dots {
+          padding: 4px 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="master-container">
+      <div class="carousel-container">
+        <div class="carousel">
+          <div class="loading">Loading carousel...</div>
+          <div class="carousel-images">
+            <!-- Images will be loaded dynamically from Google Sheets -->
+          </div>
+          <div class="carousel-controls">
+            <button class="arrow" id="prev">&#10094;</button>
+            <button class="arrow" id="next">&#10095;</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Dots positioned absolutely at bottom -->
+      <div class="dots-container">
+        <div class="dots">
+          <!-- Dots will be generated dynamically based on number of images -->
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // REPLACE THIS WITH YOUR PUBLISHED GOOGLE SHEET URL
+        const sheetId = '2PACX-1vSKEhEBZg3d4D175ogKJd4azhyQzS7qi1RFyTV9-J-I26SSiN6lEXjmUldmho_GdKxNrtmiz6rZbkPx'; 
+        const sheetURL = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
+        
+        let clickData = {}; // Store click data for analytics
+        
+        // Fetch data from Google Sheets
+        fetch(sheetURL)
+          .then(response => response.text())
+          .then(data => {
+            // Parse the JSON-like response from Google Sheets
+            const jsonData = JSON.parse(data.substring(47).slice(0, -2));
+            
+            if (jsonData.table && jsonData.table.rows) {
+              const carouselImages = document.querySelector('.carousel-images');
+              const dotsContainer = document.querySelector('.dots');
+              carouselImages.innerHTML = ''; // Clear loading placeholder
+              dotsContainer.innerHTML = ''; // Clear any existing dots
+              
+              // Extract the rows from the response
+              const rows = jsonData.table.rows;
+              
+              // Loop through each row and create image elements
+              rows.forEach((row, index) => {
+                if (row.c && row.c[0] && row.c[1]) {
+                  const imageUrl = row.c[0].v;
+                  const linkUrl = row.c[1].v;
+                  const altText = row.c[2] ? row.c[2].v : `Image ${index + 1}`;
+                  
+                  // Create image element
+                  const linkElement = document.createElement('a');
+                  linkElement.href = linkUrl;
+                  linkElement.target = "_blank";
+                  linkElement.setAttribute('data-slide-index', index);
+                  
+                  const imgElement = document.createElement('img');
+                  imgElement.src = imageUrl;
+                  imgElement.alt = altText;
+                  
+                  linkElement.appendChild(imgElement);
+                  carouselImages.appendChild(linkElement);
+                  
+                  // Create dot for navigation
+                  const dot = document.createElement('div');
+                  dot.className = index === 0 ? 'dot active' : 'dot';
+                  dot.setAttribute('data-index', index);
+                  dotsContainer.appendChild(dot);
+                  
+                  // Track clicks for analytics
+                  linkElement.addEventListener('click', () => {
+                    if (!clickData[index]) clickData[index] = 0;
+                    clickData[index]++;
+                    
+                    // Optional: Send analytics data to Google Sheets
+                    logAnalytics(index, altText);
+                  });
+                }
+              });
+              
+              // Initialize carousel functionality
+              initCarousel();
+              
+              // Remove loading indicator
+              document.querySelector('.loading').style.display = 'none';
+            }
+          })
+          .catch(error => {
+            console.error('Error fetching data from Google Sheets:', error);
+            document.querySelector('.loading').textContent = 'Error loading carousel. Please check your Google Sheet configuration.';
+          });
+          
+        function initCarousel() {
+          const images = document.querySelector('.carousel-images');
+          const dots = document.querySelectorAll('.dot');
+          const totalImages = dots.length;
+          let currentIndex = 0;
+          let touchStartX = 0;
+          let touchEndX = 0;
+
+          function updateCarousel(index) {
+            images.style.transform = `translateX(-${index * 100}%)`;
+            dots.forEach((dot, i) => {
+              dot.classList.toggle('active', i === index);
+            });
+          }
+
+          function nextSlide() {
+            currentIndex = (currentIndex + 1) % totalImages;
+            updateCarousel(currentIndex);
+          }
+
+          function prevSlide() {
+            currentIndex = (currentIndex - 1 + totalImages) % totalImages;
+            updateCarousel(currentIndex);
+          }
+
+          // Initialize autoplay
+          let autoplay = setInterval(nextSlide, 5000);
+
+          // Reset autoplay when user interacts
+          function resetAutoplay() {
+            clearInterval(autoplay);
+            autoplay = setInterval(nextSlide, 5000);
+          }
+
+          // Button controls
+          document.getElementById('next').addEventListener('click', () => {
+            resetAutoplay();
+            nextSlide();
+          });
+
+          document.getElementById('prev').addEventListener('click', () => {
+            resetAutoplay();
+            prevSlide();
+          });
+
+          // Dot navigation
+          dots.forEach((dot) => {
+            dot.addEventListener('click', () => {
+              resetAutoplay();
+              currentIndex = parseInt(dot.getAttribute('data-index'));
+              updateCarousel(currentIndex);
+            });
+          });
+
+          // Touch controls for mobile
+          const carousel = document.querySelector('.carousel');
+          
+          carousel.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+          });
+          
+          carousel.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+            resetAutoplay();
+          });
+          
+          function handleSwipe() {
+            const swipeThreshold = 50;
+            if (touchEndX < touchStartX - swipeThreshold) {
+              // Swipe left - go to next slide
+              nextSlide();
+            } else if (touchEndX > touchStartX + swipeThreshold) {
+              // Swipe right - go to previous slide
+              prevSlide();
+            }
+          }
+        }
+        
+        // Optional: Function to log analytics data
+        function logAnalytics(slideIndex, slideTitle) {
+          // This function could be expanded to send data to another Google Sheet
+          // For now, just log to console
+          console.log(`Slide ${slideIndex} (${slideTitle}) was clicked`);
+          
+          // Uncomment and modify this if you want to send analytics to Google Sheets
+          /*
+          const analyticsEndpoint = 'Your Google Apps Script Web App URL';
+          fetch(analyticsEndpoint, {
+            method: 'POST',
+            body: JSON.stringify({
+              slideIndex: slideIndex,
+              slideTitle: slideTitle,
+              timestamp: new Date().toISOString()
+            })
+          });
+          */
+        }
+      });
+    </script>
+  </body>
+</html>
