@@ -185,75 +185,101 @@
 
     <script>
       document.addEventListener('DOMContentLoaded', function() {
-        // REPLACE THIS WITH YOUR PUBLISHED GOOGLE SHEET URL
-        const sheetId = '2PACX-1vSKEhEBZg3d4D175ogKJd4azhyQzS7qi1RFyTV9-J-I26SSiN6lEXjmUldmho_GdKxNrtmiz6rZbkPx'; 
-        const sheetURL = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
+        // Use the published spreadsheet URL
+        const publishedSheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSKEhEBZg3d4D175ogKJd4azhyQzS7qi1RFyTV9-J-I26SSiN6lEXjmUldmho_GdKxNrtmiz6rZbkPx/pub?output=csv';
         
         let clickData = {}; // Store click data for analytics
         
-        // Fetch data from Google Sheets
-        fetch(sheetURL)
-          .then(response => response.text())
+        // Fetch data from Google Sheets CSV format
+        fetch(publishedSheetURL)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('Network response was not ok');
+            }
+            return response.text();
+          })
           .then(data => {
-            // Parse the JSON-like response from Google Sheets
-            const jsonData = JSON.parse(data.substring(47).slice(0, -2));
-            
-            if (jsonData.table && jsonData.table.rows) {
-              const carouselImages = document.querySelector('.carousel-images');
-              const dotsContainer = document.querySelector('.dots');
-              carouselImages.innerHTML = ''; // Clear loading placeholder
-              dotsContainer.innerHTML = ''; // Clear any existing dots
+            // Parse CSV data
+            const rows = data.split('\n').map(row => {
+              // Handle commas within quoted fields properly
+              const result = [];
+              let insideQuotes = false;
+              let currentField = '';
               
-              // Extract the rows from the response
-              const rows = jsonData.table.rows;
-              
-              // Loop through each row and create image elements
-              rows.forEach((row, index) => {
-                if (row.c && row.c[0] && row.c[1]) {
-                  const imageUrl = row.c[0].v;
-                  const linkUrl = row.c[1].v;
-                  const altText = row.c[2] ? row.c[2].v : `Image ${index + 1}`;
-                  
-                  // Create image element
-                  const linkElement = document.createElement('a');
-                  linkElement.href = linkUrl;
-                  linkElement.target = "_blank";
-                  linkElement.setAttribute('data-slide-index', index);
-                  
-                  const imgElement = document.createElement('img');
-                  imgElement.src = imageUrl;
-                  imgElement.alt = altText;
-                  
-                  linkElement.appendChild(imgElement);
-                  carouselImages.appendChild(linkElement);
-                  
-                  // Create dot for navigation
-                  const dot = document.createElement('div');
-                  dot.className = index === 0 ? 'dot active' : 'dot';
-                  dot.setAttribute('data-index', index);
-                  dotsContainer.appendChild(dot);
-                  
-                  // Track clicks for analytics
-                  linkElement.addEventListener('click', () => {
-                    if (!clickData[index]) clickData[index] = 0;
-                    clickData[index]++;
-                    
-                    // Optional: Send analytics data to Google Sheets
-                    logAnalytics(index, altText);
-                  });
+              for (let i = 0; i < row.length; i++) {
+                if (row[i] === '"' && (i === 0 || row[i-1] !== '\\')) {
+                  insideQuotes = !insideQuotes;
+                } else if (row[i] === ',' && !insideQuotes) {
+                  result.push(currentField);
+                  currentField = '';
+                } else {
+                  currentField += row[i];
                 }
-              });
+              }
               
-              // Initialize carousel functionality
+              result.push(currentField);
+              return result;
+            });
+            
+            const headers = rows[0];
+            const dataRows = rows.slice(1).filter(row => row.length > 1 && row[0].trim() !== '');
+            
+            if (dataRows.length === 0) {
+              throw new Error('No valid data found in spreadsheet');
+            }
+            
+            const carouselImages = document.querySelector('.carousel-images');
+            const dotsContainer = document.querySelector('.dots');
+            carouselImages.innerHTML = '';
+            dotsContainer.innerHTML = '';
+            
+            // Process each row
+            dataRows.forEach((row, index) => {
+              if (row.length >= 2) {
+                // Remove quotes if present
+                const imageUrl = row[0].replace(/^"(.*)"$/, '$1');
+                const linkUrl = row[1].replace(/^"(.*)"$/, '$1');
+                const altText = row.length > 2 ? row[2].replace(/^"(.*)"$/, '$1') : `Image ${index + 1}`;
+                
+                // Create image element
+                const linkElement = document.createElement('a');
+                linkElement.href = linkUrl;
+                linkElement.target = "_blank";
+                linkElement.setAttribute('data-slide-index', index);
+                
+                const imgElement = document.createElement('img');
+                imgElement.src = imageUrl;
+                imgElement.alt = altText;
+                
+                linkElement.appendChild(imgElement);
+                carouselImages.appendChild(linkElement);
+                
+                // Create dot for navigation
+                const dot = document.createElement('div');
+                dot.className = index === 0 ? 'dot active' : 'dot';
+                dot.setAttribute('data-index', index);
+                dotsContainer.appendChild(dot);
+                
+                // Track clicks for analytics
+                linkElement.addEventListener('click', () => {
+                  if (!clickData[index]) clickData[index] = 0;
+                  clickData[index]++;
+                  console.log(`Slide ${index} (${altText}) was clicked`);
+                });
+              }
+            });
+            
+            // Only initialize if we have images
+            if (carouselImages.children.length > 0) {
               initCarousel();
-              
-              // Remove loading indicator
               document.querySelector('.loading').style.display = 'none';
+            } else {
+              throw new Error('No valid images found in spreadsheet');
             }
           })
           .catch(error => {
             console.error('Error fetching data from Google Sheets:', error);
-            document.querySelector('.loading').textContent = 'Error loading carousel. Please check your Google Sheet configuration.';
+            document.querySelector('.loading').textContent = 'Error loading carousel. Please check your Google Sheet configuration. Detailed error: ' + error.message;
           });
           
         function initCarousel() {
@@ -333,26 +359,6 @@
               prevSlide();
             }
           }
-        }
-        
-        // Optional: Function to log analytics data
-        function logAnalytics(slideIndex, slideTitle) {
-          // This function could be expanded to send data to another Google Sheet
-          // For now, just log to console
-          console.log(`Slide ${slideIndex} (${slideTitle}) was clicked`);
-          
-          // Uncomment and modify this if you want to send analytics to Google Sheets
-          /*
-          const analyticsEndpoint = 'Your Google Apps Script Web App URL';
-          fetch(analyticsEndpoint, {
-            method: 'POST',
-            body: JSON.stringify({
-              slideIndex: slideIndex,
-              slideTitle: slideTitle,
-              timestamp: new Date().toISOString()
-            })
-          });
-          */
         }
       });
     </script>
