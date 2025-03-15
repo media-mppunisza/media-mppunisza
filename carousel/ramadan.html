@@ -136,17 +136,30 @@
       /* Mobile optimizations ONLY WHEN DIRECTLY VIEWED (not in iframe) */
       @media (max-width: 768px) {
         /* Check if we're in a direct view (not in iframe) */
-        html:not(.in-iframe) body {
+        html.direct-mobile body {
           height: auto !important;
         }
         
-        html:not(.in-iframe) .carousel {
-          max-height: 70vh;
+        html.direct-mobile .carousel-container {
+          padding: 10px 13.125px; /* Added requested padding */
+          height: auto; /* Auto height to ensure content fits */
         }
         
-        html:not(.in-iframe) .carousel-images img {
-          max-height: 70vh;
+        html.direct-mobile .carousel {
+          max-height: 65vh; /* Slightly reduced to ensure rounded corners are visible */
+          border-radius: 8px; /* Ensure rounded corners are visible */
+          overflow: hidden;
+        }
+        
+        html.direct-mobile .carousel-images img {
+          max-height: 65vh;
           object-fit: contain;
+        }
+        
+        html.direct-mobile .dots-container {
+          position: relative; /* Change from absolute to relative */
+          bottom: auto; /* Remove absolute positioning */
+          margin-top: 10px; /* Small gap between carousel and dots */
         }
         
         .arrow {
@@ -182,7 +195,7 @@
         </div>
       </div>
       
-      <!-- Dots positioned absolutely at bottom -->
+      <!-- Dots positioned -->
       <div class="dots-container">
         <div class="dots">
           <!-- Dots will be generated dynamically based on number of images -->
@@ -192,29 +205,59 @@
 
     <script>
       document.addEventListener('DOMContentLoaded', function() {
-        // Check if we're in an iframe
-        if (window.self !== window.top) {
-          document.documentElement.classList.add('in-iframe');
+        // Function to check browser view context and apply appropriate styling
+        function adjustViewBasedOnContext() {
+          // Check if we're in an iframe
+          const isInIframe = window.self !== window.top;
+          const isMobile = window.innerWidth <= 768;
+          
+          // Remove all context classes first
+          document.documentElement.classList.remove('in-iframe', 'direct-mobile', 'direct-desktop');
+          
+          if (!isInIframe) {
+            // Direct browser view (not in iframe)
+            if (isMobile) {
+              // Mobile direct view
+              document.documentElement.classList.add('direct-mobile');
+              
+              // Apply mobile-specific styling
+              document.querySelector('.carousel-container').style.padding = '10px 13.125px';
+              const carousel = document.querySelector('.carousel');
+              if (carousel) {
+                carousel.style.maxHeight = '65vh';
+                carousel.style.borderRadius = '8px';
+              }
+              
+              // Fix dots positioning for mobile
+              const dotsContainer = document.querySelector('.dots-container');
+              if (dotsContainer) {
+                dotsContainer.style.position = 'relative';
+                dotsContainer.style.bottom = 'auto';
+                dotsContainer.style.marginTop = '10px';
+              }
+            } else {
+              // Desktop direct view - make it match code 2
+              document.documentElement.classList.add('direct-desktop');
+              
+              // Apply code 2's desktop styling
+              document.querySelector('.carousel-container').style.height = '95vh';
+              document.querySelector('.carousel').style.height = '100%';
+              document.querySelector('.dots-container').style.bottom = '5vh';
+            }
+          } else {
+            // In iframe view - add class for potential CSS targeting
+            document.documentElement.classList.add('in-iframe');
+          }
         }
+        
+        // Call view adjustment initially and on resize
+        adjustViewBasedOnContext();
+        window.addEventListener('resize', adjustViewBasedOnContext);
         
         // Use the published spreadsheet URL
         const publishedSheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSKEhEBZg3d4D175ogKJd4azhyQzS7qi1RFyTV9-J-I26SSiN6lEXjmUldmho_GdKxNrtmiz6rZbkPx/pub?output=csv';
         
         let clickData = {}; // Store click data for analytics
-        
-        // Apply height adjustments for direct mobile view
-        function adjustForDirectMobileView() {
-          if (!document.documentElement.classList.contains('in-iframe') && window.innerWidth <= 768) {
-            // We're on mobile AND not in an iframe
-            document.querySelector('.carousel-container').style.height = '85vh';
-            document.querySelector('.carousel').style.height = '100%';
-            document.querySelector('.dots-container').style.bottom = '5vh';
-          }
-        }
-        
-        // Call initially and on resize
-        adjustForDirectMobileView();
-        window.addEventListener('resize', adjustForDirectMobileView);
         
         // Fetch data from Google Sheets CSV format
         fetch(publishedSheetURL)
@@ -301,8 +344,8 @@
               initCarousel();
               document.querySelector('.loading').style.display = 'none';
               
-              // Apply height again after images load
-              adjustForDirectMobileView();
+              // Apply adjustments again after images load
+              adjustViewBasedOnContext();
             } else {
               throw new Error('No valid images found in spreadsheet');
             }
